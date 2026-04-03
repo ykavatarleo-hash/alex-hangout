@@ -13,3 +13,7 @@ async def on_ready():
     print(f'Logged in as: {bot.user.name}')
 
 bot.run(os.getenv('DISCORD_TOKEN'))
+@bot.event
+async def on_ready():
+    await bot.tree.sync()
+    print("Commands synced!")
