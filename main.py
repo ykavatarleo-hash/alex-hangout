@@ -1,14 +1,15 @@
+import os
 import discord
 from discord.ext import commands
 
-# Create a bot instance
-bot = commands.Bot(command_prefix='!')
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
-    # Set the bot's status
     await bot.change_presence(activity=discord.Game(name="Alex's Hangout"))
-    print(f'Logged in as {bot.user}')
+    print(f'Logged in as: {bot.user.name}')
 
-# Run the bot with your token
-bot.run('YOUR_BOT_TOKEN')
+bot.run(os.getenv('DISCORD_TOKEN'))
