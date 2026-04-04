@@ -212,7 +212,7 @@ client.on("guildMemberAdd", async (member) => {
   const embed = new EmbedBuilder()
     .setColor("#8B8C92")
     .setTitle("Welcome to Alex's Hangout!")
-    .setDescription(`${member} has joined the Alex's Hangout! You are our ${member.guild.memberCount}th member! We're so glad to have you here. Please be sure to check out our rules in <#1453944026444206161> and our most recent announcements in <#1453944617241149554>. If you'd like to receive notifications on giveaways, affiliates or events, be sure to react with the appropriate emoji!`)
+.setDescription(`${member} has joined the Alex's Hangout! You are our ${member.guild.memberCount}th member! We're so glad to have you here. Please be sure to check out our rules in <#1453944026444206161> and our most recent announcements in <#1453944617241149554>. If you'd like to receive notifications on giveaways, affiliates or events, be sure to react with the appropriate emoji!`)
     .setImage("https://cdn.discordapp.com/attachments/1453949932841992325/1490086476929699901/WelcomeBanner.png");
 
   channel.send({ embeds: [embed] });
