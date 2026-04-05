@@ -1,3 +1,7 @@
+const TOKEN = process.env.TOKEN;
+if (!TOKEN) {
+  console.error("❌ TOKEN NOT FOUND");
+}
 const {
   Client,
   GatewayIntentBits,
@@ -53,7 +57,7 @@ client.once("ready", async () => {
     }
   ];
 
-  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+ const rest = new REST({ version: "10" }).setToken(TOKEN);
 
   try {
     console.log("Registering commands...");
@@ -227,4 +231,4 @@ client.on("guildMemberAdd", async (member) => {
   channel.send({ embeds: [embed] });
 });
 
-client.login(process.env.TOKEN);
+client.login(TOKEN);
