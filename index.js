@@ -273,11 +273,9 @@ client.on("guildMemberAdd", async (member) => {
     .setColor("#8B8C92")
     .setTitle("👋 Welcome to Alex’s Hangout!")
     .setDescription(
-  `Welcome {user}!\n\n` +
-  "Please use the buttons below to navigate through the server. " +
-  "If you need any help, feel free to open a support ticket.\n\n" +
-  "Most questions can be answered in the Information section.\n\n" +
-  "*We hope you enjoy your stay at Alex’s Hangout!* 💙
+      `Welcome {user}!\n\n` +
+      `You are our **${member.guild.memberCount}th** member!\n\n` +
+      "Use the buttons below to get started 👇"
     )
     .setImage("https://cdn.discordapp.com/attachments/1453949932841992325/1490086476929699901/WelcomeBanner.png");
 
