@@ -41,7 +41,6 @@ const TRANSCRIPT_CHANNEL = "1453974468547444819";
 const PANEL_CHANNEL = "1453944972477862136";
 const WELCOME_CHANNEL = "1453945503434936512";
 
-// ✅ FINAL CLEAN IMAGE (NO EXPIRY)
 const SUPPORT_IMAGE = "https://cdn.discordapp.com/attachments/1453949932841992325/1490316347748647002/Copy_of_Solani_Banners_-_WelcomeBanner.png";
 
 let ticketCount = 0;
@@ -73,11 +72,14 @@ client.on("interactionCreate", async (interaction) => {
   // ===== PANEL =====
   if (interaction.isChatInputCommand()) {
 
-    const embed = new EmbedBuilder()
-      .setColor("#2b2d31")
-      .setImage(SUPPORT_IMAGE)
+    const imageEmbed = new EmbedBuilder()
+      .setColor("#8B8C92")
+      .setImage(SUPPORT_IMAGE);
+
+    const textEmbed = new EmbedBuilder()
+      .setColor("#8B8C92")
       .setDescription(
-        "Please use the dropdown menu to select a ticket. " +
+        "Please use the dropdown menu to select a ticket.\n" +
         "Most questions can be answered inside a General Support one."
       );
 
@@ -95,7 +97,7 @@ client.on("interactionCreate", async (interaction) => {
     const row = new ActionRowBuilder().addComponents(menu);
 
     const channel = await client.channels.fetch(PANEL_CHANNEL);
-    await channel.send({ embeds: [embed], components: [row] });
+    await channel.send({ embeds: [imageEmbed, textEmbed], components: [row] });
 
     return interaction.reply({ content: "✅ Panel sent!", ephemeral: true });
   }
@@ -125,7 +127,6 @@ client.on("interactionCreate", async (interaction) => {
       ping = `<@&${ADMIN_ROLE}>`;
     }
 
-    // ✅ FIXED GIVEAWAY (correct role only)
     if (type === "giveaway") {
       category = CAT_LEADER;
       roles = [STAFF_ROLE];
@@ -197,7 +198,7 @@ client.on("interactionCreate", async (interaction) => {
       content: ping,
       embeds: [
         new EmbedBuilder()
-          .setColor("#2b2d31")
+          .setColor("#8B8C92")
           .setDescription(
             `Hello ${interaction.user}\n\n` +
             "Please describe your issue below.\nSupport will be with you shortly."
@@ -216,7 +217,7 @@ client.on("interactionCreate", async (interaction) => {
       const channel = await client.channels.fetch(channelId);
 
       const embed = new EmbedBuilder()
-        .setColor("#2b2d31")
+        .setColor("#8B8C92")
         .setTitle("🎉 Giveaway Submission")
         .setDescription(
           `**Prize**\n${interaction.fields.getTextInputValue("prize")}\n\n` +
@@ -272,17 +273,20 @@ client.on("guildMemberAdd", async (member) => {
   const channel = member.guild.channels.cache.get(WELCOME_CHANNEL);
   if (!channel) return;
 
-  const embed = new EmbedBuilder()
-    .setColor("#2b2d31")
+  const imageEmbed = new EmbedBuilder()
+    .setColor("#8B8C92")
+    .setImage(SUPPORT_IMAGE);
+
+  const textEmbed = new EmbedBuilder()
+    .setColor("#8B8C92")
     .setTitle("👋 Welcome to Alex’s Hangout!")
     .setDescription(
       `Welcome {user}!\n\n` +
-      "Please use the buttons below to navigate through the server. " +
+      "Please use the buttons below to navigate through the server.\n" +
       "If you need any help, feel free to open a support ticket.\n\n" +
       "Most questions can be answered in the Information section.\n\n" +
       "*We hope you enjoy your stay at Alex’s Hangout!* 💙"
-    )
-    .setImage(SUPPORT_IMAGE);
+    );
 
   const buttons = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -296,7 +300,7 @@ client.on("guildMemberAdd", async (member) => {
   );
 
   channel.send({
-    embeds: [embed],
+    embeds: [imageEmbed, textEmbed],
     components: [buttons]
   });
 });
