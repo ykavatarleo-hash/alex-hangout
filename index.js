@@ -1,49 +1,29 @@
 const TOKEN = process.env.TOKEN;
-if (!TOKEN) console.error("❌ TOKEN NOT FOUND");
 
 const {
   Client,
   GatewayIntentBits,
   EmbedBuilder,
   ActionRowBuilder,
-  StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionsBitField,
-  ChannelType,
-  REST,
-  Routes,
   ModalBuilder,
   TextInputBuilder,
-  TextInputStyle
+  TextInputStyle,
+  StringSelectMenuBuilder,
+  REST,
+  Routes
 } = require("discord.js");
 
-const fs = require("fs");
-
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers
-  ]
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
 // ===== CONFIG =====
-const GENERAL_ROLE = "1453942545691447366";
-const STAFF_ROLE = "1453942664830521376";
-const ADMIN_ROLE = "1453942621520138360";
-
-const CAT_GENERAL = "1453972934946459769";
-const CAT_STAFF = "1477641183810556099";
-const CAT_LEADER = "1477640903488438357";
-
-const TRANSCRIPT_CHANNEL = "1453974468547444819";
-const PANEL_CHANNEL = "1453944972477862136";
-const WELCOME_CHANNEL = "1453945503434936512";
+const STAFF_PANEL_CHANNEL = "1453949648082567278";
 const LOG_CHANNEL = "1475224763327582309";
+const WELCOME_CHANNEL = "1453945503434936512";
 
-const SUPPORT_IMAGE = "https://cdn.discordapp.com/attachments/1453949932841992325/1490316347748647002/Copy_of_Solani_Banners_-_WelcomeBanner.png";
-
-let ticketCount = 0;
 let autoPingChannel = null;
 let giveaways = {};
 
@@ -51,24 +31,26 @@ let giveaways = {};
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
 
-  client.user.setPresence({
-    activities: [{ name: "Alex’s Hangout", type: 3 }],
-    status: "online"
-  });
-
   const rest = new REST({ version: "10" }).setToken(TOKEN);
 
   await rest.put(
     Routes.applicationGuildCommands("1479902342395596941", "1453937653539147820"),
     {
       body: [
-        { name: "ticketpanel", description: "Send ticket panel" },
-        { name: "staffpanel", description: "Send staff panel" },
+        {
+          name: "staffpanel",
+          description: "Send staff panel"
+        },
         {
           name: "autoping",
           description: "Set auto ping",
           options: [
-            { name: "channel", type: 7, required: true }
+            {
+              name: "channel",
+              description: "Channel",
+              type: 7,
+              required: true
+            }
           ]
         },
         {
@@ -77,19 +59,21 @@ client.once("ready", async () => {
           options: [
             {
               name: "start",
+              description: "Start giveaway",
               type: 1,
               options: [
-                { name: "channel", type: 7, required: true },
-                { name: "prize", type: 3, required: true },
-                { name: "duration", type: 3, required: true },
-                { name: "image", type: 3 }
+                { name: "channel", description: "Channel", type: 7, required: true },
+                { name: "prize", description: "Prize", type: 3, required: true },
+                { name: "duration", description: "Duration", type: 3, required: true },
+                { name: "image", description: "Image URL", type: 3 }
               ]
             },
             {
               name: "reroll",
+              description: "Reroll giveaway",
               type: 1,
               options: [
-                { name: "messageid", type: 3, required: true }
+                { name: "messageid", description: "Message ID", type: 3, required: true }
               ]
             }
           ]
@@ -98,55 +82,44 @@ client.once("ready", async () => {
     }
   );
 
-  console.log("✅ Bot ready");
+  console.log("✅ Commands ready");
 });
 
 // ===== INTERACTIONS =====
 client.on("interactionCreate", async (interaction) => {
 
-  // ===== SLASH COMMANDS =====
+  // ===== COMMANDS =====
   if (interaction.isChatInputCommand()) {
 
-    // ===== STAFF PANEL =====
+    // STAFF PANEL
     if (interaction.commandName === "staffpanel") {
 
       const embed = new EmbedBuilder()
         .setColor("#8B8C92")
         .setTitle("Staff Manager")
-        .setDescription("Manage staff & moderation");
+        .setDescription("Select an action");
 
-      const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("promo").setLabel("Staff Promo").setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId("demo").setLabel("Staff Demo").setStyle(ButtonStyle.Danger)
-      );
-
-      const row2 = new ActionRowBuilder().addComponents(
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("promo").setLabel("Promote").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId("demo").setLabel("Demote").setStyle(ButtonStyle.Danger),
         new ButtonBuilder().setCustomId("warn").setLabel("Warn").setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId("remind").setLabel("Reminder").setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId("ban").setLabel("Ban").setStyle(ButtonStyle.Danger)
       );
 
-      const row3 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("tier1").setLabel("Tier 1").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("tier2").setLabel("Tier 2").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("tier3").setLabel("Tier 3").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("tier4").setLabel("Tier 4").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("tier5").setLabel("Tier 5").setStyle(ButtonStyle.Secondary)
-      );
+      const channel = await client.channels.fetch(STAFF_PANEL_CHANNEL);
+      await channel.send({ embeds: [embed], components: [row] });
 
-      const channel = await client.channels.fetch(PANEL_CHANNEL);
-      await channel.send({ embeds: [embed], components: [row1, row2, row3] });
-
-      return interaction.reply({ content: "✅ Staff panel sent", ephemeral: true });
+      return interaction.reply({ content: "✅ Panel sent", ephemeral: true });
     }
 
-    // ===== AUTOPING =====
+    // AUTOPING
     if (interaction.commandName === "autoping") {
       autoPingChannel = interaction.options.getChannel("channel").id;
       return interaction.reply({ content: "✅ Auto ping set", ephemeral: true });
     }
 
-    // ===== GIVEAWAY =====
+    // GIVEAWAY
     if (interaction.commandName === "giveaway") {
       const sub = interaction.options.getSubcommand();
 
@@ -187,56 +160,65 @@ client.on("interactionCreate", async (interaction) => {
         return interaction.reply("✅ Rerolled");
       }
     }
-
-    // ===== ORIGINAL TICKET PANEL (UNCHANGED) =====
-    if (interaction.commandName === "ticketpanel") {
-
-      const imageEmbed = new EmbedBuilder()
-        .setColor("#8B8C92")
-        .setImage(SUPPORT_IMAGE);
-
-      const textEmbed = new EmbedBuilder()
-        .setColor("#8B8C92")
-        .setDescription("Please use the dropdown menu to select a ticket.");
-
-      const menu = new StringSelectMenuBuilder()
-        .setCustomId("ticket_select")
-        .addOptions([
-          { label: "General Support", value: "general" },
-          { label: "Staff Report", value: "staff" },
-          { label: "Partnership", value: "partner" },
-          { label: "Leadership Support", value: "leader" },
-          { label: "Sponsored Giveaway", value: "giveaway" }
-        ]);
-
-      const row = new ActionRowBuilder().addComponents(menu);
-
-      const channel = await client.channels.fetch(PANEL_CHANNEL);
-      await channel.send({ embeds: [imageEmbed, textEmbed], components: [row] });
-
-      return interaction.reply({ content: "✅ Panel sent!", ephemeral: true });
-    }
   }
 
   // ===== BUTTONS =====
   if (interaction.isButton()) {
 
+    // PROMOTE / DEMOTE → ROLE SELECT
+    if (interaction.customId === "promo" || interaction.customId === "demo") {
+
+      const roles = interaction.guild.roles.cache
+        .filter(r => r.name !== "@everyone")
+        .map(r => ({
+          label: r.name,
+          value: r.id
+        }))
+        .slice(0, 25);
+
+      const select = new StringSelectMenuBuilder()
+        .setCustomId(interaction.customId + "_role")
+        .setPlaceholder("Select a role")
+        .addOptions(roles);
+
+      const row = new ActionRowBuilder().addComponents(select);
+
+      return interaction.reply({
+        content: "Select a role (tier)",
+        components: [row],
+        ephemeral: true
+      });
+    }
+
+    // OTHER BUTTONS → MODAL
     const modal = new ModalBuilder()
       .setCustomId(interaction.customId)
-      .setTitle("Staff Action");
+      .setTitle("Action");
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId("user")
-          .setLabel("User ID")
-          .setStyle(TextInputStyle.Short)
+        new TextInputBuilder().setCustomId("user").setLabel("User ID").setStyle(TextInputStyle.Short)
       ),
       new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId("reason")
-          .setLabel("Reason")
-          .setStyle(TextInputStyle.Paragraph)
+        new TextInputBuilder().setCustomId("reason").setLabel("Reason").setStyle(TextInputStyle.Paragraph)
+      )
+    );
+
+    return interaction.showModal(modal);
+  }
+
+  // ===== ROLE SELECT =====
+  if (interaction.isStringSelectMenu()) {
+
+    const roleId = interaction.values[0];
+
+    const modal = new ModalBuilder()
+      .setCustomId("role_action_" + roleId + "_" + interaction.customId)
+      .setTitle("User");
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId("user").setLabel("User ID").setStyle(TextInputStyle.Short)
       )
     );
 
@@ -246,36 +228,43 @@ client.on("interactionCreate", async (interaction) => {
   // ===== MODALS =====
   if (interaction.isModalSubmit()) {
 
+    const logChannel = await client.channels.fetch(LOG_CHANNEL);
+
+    // ROLE ACTION
+    if (interaction.customId.startsWith("role_action_")) {
+      const [, roleId, action] = interaction.customId.split("_");
+
+      const userId = interaction.fields.getTextInputValue("user");
+      const member = await interaction.guild.members.fetch(userId).catch(() => null);
+
+      if (member) {
+        if (action === "promo_role") await member.roles.add(roleId);
+        if (action === "demo_role") await member.roles.remove(roleId);
+      }
+
+      return interaction.reply({ content: "✅ Done", ephemeral: true });
+    }
+
+    // MOD ACTIONS
     const userId = interaction.fields.getTextInputValue("user");
     const reason = interaction.fields.getTextInputValue("reason");
 
     const member = await interaction.guild.members.fetch(userId).catch(() => null);
-    const logChannel = await client.channels.fetch(LOG_CHANNEL);
 
     const embed = new EmbedBuilder()
       .setColor("#8B8C92")
       .setDescription(`User: <@${userId}>\nReason: ${reason}\nBy: ${interaction.user}`);
 
-    if (interaction.customId === "promo") {
-      if (member) await member.roles.add(STAFF_ROLE);
-      embed.setTitle("Promoted");
-    }
-
-    if (interaction.customId === "demo") {
-      if (member) await member.roles.remove(STAFF_ROLE);
-      embed.setTitle("Demoted");
-    }
-
     if (interaction.customId === "warn") embed.setTitle("Warned");
 
     if (interaction.customId === "remind") {
-      embed.setTitle("Reminder Sent");
+      embed.setTitle("Reminder");
       if (member) member.send(reason).catch(() => {});
     }
 
     if (interaction.customId === "ban") {
-      if (member) await member.ban({ reason });
       embed.setTitle("Banned");
+      if (member) await member.ban({ reason });
     }
 
     await logChannel.send({ embeds: [embed] });
@@ -284,18 +273,16 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-// ===== AUTO PING + WELCOME =====
+// ===== JOIN =====
 client.on("guildMemberAdd", async (member) => {
-
-  const channel = member.guild.channels.cache.get(WELCOME_CHANNEL);
-  if (channel) {
-    channel.send(`Welcome ${member}!`);
-  }
 
   if (autoPingChannel) {
     const ch = member.guild.channels.cache.get(autoPingChannel);
     if (ch) ch.send(`${member} check out this giveaway!`);
   }
+
+  const ch = member.guild.channels.cache.get(WELCOME_CHANNEL);
+  if (ch) ch.send(`Welcome ${member}!`);
 });
 
 client.login(TOKEN);
