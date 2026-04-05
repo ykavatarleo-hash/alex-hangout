@@ -272,13 +272,12 @@ client.on("guildMemberAdd", async (member) => {
   const embed = new EmbedBuilder()
     .setColor("#8B8C92")
     .setTitle("👋 Welcome to Alex’s Hangout!")
-   .setDescription(
+    .setDescription(
   `Welcome {user}!\n\n` +
   "Please use the buttons below to navigate through the server. " +
   "If you need any help, feel free to open a support ticket.\n\n" +
   "Most questions can be answered in the Information section.\n\n" +
-  "*We hope you enjoy your stay at Alex’s Hangout!* 💙"
-)
+  "*We hope you enjoy your stay at Alex’s Hangout!* 💙
     )
     .setImage("https://cdn.discordapp.com/attachments/1453949932841992325/1490086476929699901/WelcomeBanner.png");
 
