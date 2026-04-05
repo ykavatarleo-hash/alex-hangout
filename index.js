@@ -85,7 +85,7 @@ client.on("interactionCreate", async (interaction) => {
       const embed2 = new EmbedBuilder()
         .setColor("#8B8C92")
         .setImage("https://cdn.discordapp.com/attachments/1453949932841992325/1489546181280530482/36733093-BE93-4153-8809-B6A8D507D066.png")
-        .setDescription("Please use the dropdown menu to select a ticket. Most questions can be answered inside a General Support one");
+        .setDescription("Please use the dropdown Menu below to select the appropriate ticket. If you require any help that you believe can be answered by everyone open a General Support ticket.");
 
       const menu = new StringSelectMenuBuilder()
         .setCustomId("ticket_select")
