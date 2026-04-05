@@ -28,37 +28,28 @@ const client = new Client({
 });
 
 // ===== CONFIG =====
-const GENERAL_ROLE = "1453942545691447366";
 const STAFF_ROLE = "1453942664830521376";
 const ADMIN_ROLE = "1453942621520138360";
 
-const CAT_GENERAL = "1453972934946459769";
-const CAT_STAFF = "1477641183810556099";
-const CAT_LEADER = "1477640903488438357";
-
-const TRANSCRIPT_CHANNEL = "1453974468547444819";
 const PANEL_CHANNEL = "1453944972477862136";
+const LOG_CHANNEL = "1475224763327582309";
 const WELCOME_CHANNEL = "1453945503434936512";
 
-const SUPPORT_IMAGE = "https://cdn.discordapp.com/attachments/1453949932841992325/1490316347748647002/Copy_of_Solani_Banners_-_WelcomeBanner.png";
-
-let ticketCount = 0;
+let autoPingChannel = null;
 
 // ===== READY =====
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
-
-  client.user.setPresence({
-    activities: [{ name: "Alex’s Hangout", type: 3 }],
-    status: "online"
-  });
 
   const rest = new REST({ version: "10" }).setToken(TOKEN);
 
   await rest.put(
     Routes.applicationGuildCommands("1479902342395596941", "1453937653539147820"),
     {
-      body: [{ name: "ticketpanel", description: "Send ticket panel" }]
+      body: [
+        { name: "ticketpanel", description: "Send ticket panel" },
+        { name: "staffpanel", description: "Send staff panel" }
+      ]
     }
   );
 
@@ -68,241 +59,125 @@ client.once("ready", async () => {
 // ===== INTERACTIONS =====
 client.on("interactionCreate", async (interaction) => {
 
-  // ===== PANEL =====
+  // ===== SLASH =====
   if (interaction.isChatInputCommand()) {
 
-    const imageEmbed = new EmbedBuilder()
-      .setColor("#8B8C92")
-      .setImage(SUPPORT_IMAGE);
-
-    const textEmbed = new EmbedBuilder()
-      .setColor("#8B8C92")
-      .setDescription(
-        "Please use the dropdown menu to select a ticket.\n" +
-        "Most questions can be answered inside a General Support one."
-      );
-
-    const menu = new StringSelectMenuBuilder()
-      .setCustomId("ticket_select")
-      .setPlaceholder("Select a ticket type")
-      .addOptions([
-        { label: "General Support", value: "general", emoji: "💼" },
-        { label: "Staff Report", value: "staff", emoji: "📖" },
-        { label: "Partnership", value: "partner", emoji: "🤝" },
-        { label: "Leadership Support", value: "leader", emoji: "👑" },
-        { label: "Sponsored Giveaway", value: "giveaway", emoji: "🎉" }
-      ]);
-
-    const row = new ActionRowBuilder().addComponents(menu);
-
-    const channel = await client.channels.fetch(PANEL_CHANNEL);
-    await channel.send({ embeds: [imageEmbed, textEmbed], components: [row] });
-
-    return interaction.reply({ content: "✅ Panel sent!", ephemeral: true });
-  }
-
-  // ===== DROPDOWN =====
-  if (interaction.isStringSelectMenu()) {
-
-    const type = interaction.values[0];
-
-    let category, roles, ping;
-
-    if (type === "general") {
-      category = CAT_GENERAL;
-      roles = [GENERAL_ROLE];
-      ping = `<@&${GENERAL_ROLE}>`;
-    }
-
-    if (type === "staff" || type === "partner") {
-      category = CAT_STAFF;
-      roles = [STAFF_ROLE, ADMIN_ROLE];
-      ping = `<@&${STAFF_ROLE}> <@&${ADMIN_ROLE}>`;
-    }
-
-    if (type === "leader" || type === "giveaway") {
-      category = CAT_LEADER;
-      roles = [STAFF_ROLE];
-      ping = `<@&${STAFF_ROLE}>`;
-    }
-
-    ticketCount++;
-
-    const ticketChannel = await interaction.guild.channels.create({
-      name: `ticket-${interaction.user.username}-${ticketCount}`,
-      type: ChannelType.GuildText,
-      parent: category,
-      permissionOverwrites: [
-        { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel] },
-        ...roles.map(r => ({
-          id: r,
-          allow: [PermissionsBitField.Flags.ViewChannel]
-        }))
-      ]
-    });
-
-    // ===== GIVEAWAY =====
-    if (type === "giveaway") {
-
-      const modal = new ModalBuilder()
-        .setCustomId(`giveaway_${ticketChannel.id}`)
-        .setTitle("🎉 Sponsored Giveaway");
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId("prize").setLabel("Prize").setStyle(TextInputStyle.Short)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId("announcement").setLabel("Announcement").setStyle(TextInputStyle.Paragraph)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId("addons").setLabel("Add-ons").setStyle(TextInputStyle.Short)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId("days").setLabel("Duration").setStyle(TextInputStyle.Short)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId("ping").setLabel("Ping Role").setStyle(TextInputStyle.Short)
-        )
-      );
-
-      await interaction.showModal(modal);
-
-      const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("claim").setLabel("Claim").setEmoji("🙋‍♂️").setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId("close").setLabel("Close").setEmoji("🔒").setStyle(ButtonStyle.Danger)
-      );
+    // ===== STAFF PANEL =====
+    if (interaction.commandName === "staffpanel") {
 
       const embed = new EmbedBuilder()
         .setColor("#8B8C92")
-        .setDescription(
-          `Hello ${interaction.user}\n\n` +
-          "Please complete the giveaway form.\nStaff will review shortly."
-        );
+        .setTitle("Staff Manager")
+        .setDescription("Manage staff & moderation");
 
-      await ticketChannel.send({
-        content: ping,
-        embeds: [embed],
-        components: [buttons]
-      });
+      const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("promo").setLabel("Staff Promo").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId("demo").setLabel("Staff Demo").setStyle(ButtonStyle.Danger)
+      );
 
-      return;
+      const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("warn").setLabel("Warn").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("remind").setLabel("Reminder").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("ban").setLabel("Ban").setStyle(ButtonStyle.Danger)
+      );
+
+      const channel = await client.channels.fetch(PANEL_CHANNEL);
+      await channel.send({ embeds: [embed], components: [row1, row2] });
+
+      return interaction.reply({ content: "✅ Staff panel sent", ephemeral: true });
     }
 
-    // ===== NORMAL TICKETS =====
-    await interaction.reply({
-      content: `✅ Ticket created: ${ticketChannel}`,
-      ephemeral: true
-    });
-
-    const buttons = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("claim").setLabel("Claim").setEmoji("🙋‍♂️").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId("close").setLabel("Close").setEmoji("🔒").setStyle(ButtonStyle.Danger)
-    );
-
-    await ticketChannel.send({
-      content: ping,
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#8B8C92")
-          .setDescription(
-            `Hello ${interaction.user}\n\n` +
-            "Please describe your issue below.\nSupport will be with you shortly."
-          )
-      ],
-      components: [buttons]
-    });
-  }
-
-  // ===== MODAL =====
-  if (interaction.isModalSubmit()) {
-
-    if (interaction.customId.startsWith("giveaway_")) {
-
-      const channelId = interaction.customId.split("_")[1];
-      const channel = await client.channels.fetch(channelId);
-
-      const embed = new EmbedBuilder()
-        .setColor("#8B8C92")
-        .setTitle("🎉 Giveaway Submission")
-        .setDescription(
-          `**Prize**\n${interaction.fields.getTextInputValue("prize")}\n\n` +
-          `**Announcement**\n${interaction.fields.getTextInputValue("announcement")}\n\n` +
-          `**Add-ons**\n${interaction.fields.getTextInputValue("addons")}\n\n` +
-          `**Duration**\n${interaction.fields.getTextInputValue("days")}\n\n` +
-          `**Ping**\n${interaction.fields.getTextInputValue("ping")}`
-        );
-
-      await interaction.reply({ content: "✅ Submitted!", ephemeral: true });
-      await channel.send({ embeds: [embed] });
+    // ===== KEEP YOUR TICKET PANEL =====
+    if (interaction.commandName === "ticketpanel") {
+      return interaction.reply({ content: "Use your existing panel", ephemeral: true });
     }
   }
 
   // ===== BUTTONS =====
   if (interaction.isButton()) {
 
-    if (interaction.customId === "claim") {
-      return interaction.reply({
-        content: `✅ ${interaction.user} claimed this ticket`
-      });
+    const modal = new ModalBuilder()
+      .setCustomId(interaction.customId)
+      .setTitle("Action");
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("user")
+          .setLabel("User ID")
+          .setStyle(TextInputStyle.Short)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("reason")
+          .setLabel("Reason")
+          .setStyle(TextInputStyle.Paragraph)
+      )
+    );
+
+    return interaction.showModal(modal);
+  }
+
+  // ===== MODALS =====
+  if (interaction.isModalSubmit()) {
+
+    const userId = interaction.fields.getTextInputValue("user");
+    const reason = interaction.fields.getTextInputValue("reason");
+
+    const member = await interaction.guild.members.fetch(userId).catch(() => null);
+    const logChannel = await client.channels.fetch(LOG_CHANNEL);
+
+    const embed = new EmbedBuilder()
+      .setColor("#8B8C92")
+      .setDescription(`User: <@${userId}>\nReason: ${reason}\nBy: ${interaction.user}`);
+
+    // ===== PROMOTE =====
+    if (interaction.customId === "promo") {
+      if (member) await member.roles.add(STAFF_ROLE);
+      embed.setTitle("Promoted");
     }
 
-    if (interaction.customId === "close") {
-
-      await interaction.reply({ content: "Closing ticket..." });
-
-      const messages = await interaction.channel.messages.fetch({ limit: 100 });
-
-      const transcript = messages
-        .map(m => `${m.author.tag}: ${m.content}`)
-        .reverse()
-        .join("\n");
-
-      const file = `transcript-${interaction.channel.id}.txt`;
-      fs.writeFileSync(file, transcript);
-
-      const logChannel = await client.channels.fetch(TRANSCRIPT_CHANNEL);
-
-      await logChannel.send({
-        content: `Transcript for ${interaction.channel.name}`,
-        files: [file]
-      });
-
-      setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
+    // ===== DEMOTE =====
+    if (interaction.customId === "demo") {
+      if (member) await member.roles.remove(STAFF_ROLE);
+      embed.setTitle("Demoted");
     }
+
+    // ===== WARN =====
+    if (interaction.customId === "warn") {
+      embed.setTitle("Warned");
+    }
+
+    // ===== REMINDER =====
+    if (interaction.customId === "remind") {
+      embed.setTitle("Reminder Sent");
+      if (member) member.send(`Reminder: ${reason}`).catch(() => {});
+    }
+
+    // ===== BAN =====
+    if (interaction.customId === "ban") {
+      if (member) await member.ban({ reason });
+      embed.setTitle("Banned");
+    }
+
+    await logChannel.send({ embeds: [embed] });
+
+    return interaction.reply({ content: "✅ Done", ephemeral: true });
   }
 });
 
-// ===== WELCOME =====
+// ===== AUTO PING =====
 client.on("guildMemberAdd", async (member) => {
 
-  const channel = member.guild.channels.cache.get(WELCOME_CHANNEL);
-  if (!channel) return;
+  const welcomeChannel = member.guild.channels.cache.get(WELCOME_CHANNEL);
+  if (welcomeChannel) {
+    welcomeChannel.send(`Welcome ${member}!`);
+  }
 
-  const embed = new EmbedBuilder()
-    .setColor("#8B8C92")
-    .setImage(SUPPORT_IMAGE)
-    .setTitle("👋 Welcome to Alex’s Hangout!")
-    .setDescription(
-      `Welcome ${member}!\n\n` +
-      "Use the buttons below to navigate the server.\n" +
-      "Need help? Open a ticket!\n\n" +
-      "*Enjoy your stay!* 💙"
-    );
-
-  const buttons = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setLabel("📘 Information")
-      .setStyle(ButtonStyle.Link)
-      .setURL("https://discord.com/channels/1453937653539147820/1453944026444206161"),
-    new ButtonBuilder()
-      .setLabel("📢 Announcements")
-      .setStyle(ButtonStyle.Link)
-      .setURL("https://discord.com/channels/1453937653539147820/1453944617241149554")
-  );
-
-  channel.send({ embeds: [embed], components: [buttons] });
+  if (autoPingChannel) {
+    const ch = member.guild.channels.cache.get(autoPingChannel);
+    if (ch) ch.send(`${member} check out this giveaway!`);
+  }
 });
 
 client.login(TOKEN);
