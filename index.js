@@ -23,7 +23,6 @@ const fs = require("fs");
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMembers
   ]
 });
@@ -87,11 +86,11 @@ client.on("interactionCreate", async (interaction) => {
       .setCustomId("ticket_select")
       .setPlaceholder("Select a ticket type")
       .addOptions([
-        { label: "General Support", value: "general" },
-        { label: "Staff Report", value: "staff" },
-        { label: "Partnership", value: "partner" },
-        { label: "Leadership Support", value: "leader" },
-        { label: "Sponsored Giveaway", value: "giveaway" }
+        { label: "General Support", value: "general", emoji: "💼" },
+        { label: "Staff Report", value: "staff", emoji: "📖" },
+        { label: "Partnership", value: "partner", emoji: "🤝" },
+        { label: "Leadership Support", value: "leader", emoji: "👑" },
+        { label: "Sponsored Giveaway", value: "giveaway", emoji: "🎉" }
       ]);
 
     const row = new ActionRowBuilder().addComponents(menu);
@@ -121,16 +120,10 @@ client.on("interactionCreate", async (interaction) => {
       ping = `<@&${STAFF_ROLE}> <@&${ADMIN_ROLE}>`;
     }
 
-    if (type === "leader") {
-      category = CAT_LEADER;
-      roles = [ADMIN_ROLE];
-      ping = `<@&${ADMIN_ROLE}>`;
-    }
-
-    if (type === "giveaway") {
+    if (type === "leader" || type === "giveaway") {
       category = CAT_LEADER;
       roles = [STAFF_ROLE];
-      ping = `<@&1453942664830521376>`;
+      ping = `<@&${STAFF_ROLE}>`;
     }
 
     ticketCount++;
@@ -176,8 +169,22 @@ client.on("interactionCreate", async (interaction) => {
 
       await interaction.showModal(modal);
 
+      const buttons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("claim").setLabel("Claim").setEmoji("🙋‍♂️").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId("close").setLabel("Close").setEmoji("🔒").setStyle(ButtonStyle.Danger)
+      );
+
+      const embed = new EmbedBuilder()
+        .setColor("#8B8C92")
+        .setDescription(
+          `Hello ${interaction.user}\n\n` +
+          "Please complete the giveaway form.\nStaff will review shortly."
+        );
+
       await ticketChannel.send({
-        content: `${ping}\n${interaction.user} opened a giveaway ticket`
+        content: ping,
+        embeds: [embed],
+        components: [buttons]
       });
 
       return;
@@ -273,19 +280,15 @@ client.on("guildMemberAdd", async (member) => {
   const channel = member.guild.channels.cache.get(WELCOME_CHANNEL);
   if (!channel) return;
 
-  const imageEmbed = new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor("#8B8C92")
-    .setImage(SUPPORT_IMAGE);
-
-  const textEmbed = new EmbedBuilder()
-    .setColor("#8B8C92")
+    .setImage(SUPPORT_IMAGE)
     .setTitle("👋 Welcome to Alex’s Hangout!")
     .setDescription(
-      `Welcome {user}!\n\n` +
-      "Please use the buttons below to navigate through the server.\n" +
-      "If you need any help, feel free to open a support ticket.\n\n" +
-      "Most questions can be answered in the Information section.\n\n" +
-      "*We hope you enjoy your stay at Alex’s Hangout!* 💙"
+      `Welcome ${member}!\n\n` +
+      "Use the buttons below to navigate the server.\n" +
+      "Need help? Open a ticket!\n\n" +
+      "*Enjoy your stay!* 💙"
     );
 
   const buttons = new ActionRowBuilder().addComponents(
@@ -299,10 +302,7 @@ client.on("guildMemberAdd", async (member) => {
       .setURL("https://discord.com/channels/1453937653539147820/1453944617241149554")
   );
 
-  channel.send({
-    embeds: [imageEmbed, textEmbed],
-    components: [buttons]
-  });
+  channel.send({ embeds: [embed], components: [buttons] });
 });
 
 client.login(TOKEN);
