@@ -142,7 +142,7 @@ client.on("interactionCreate", async interaction => {
 
       const embed2 = new EmbedBuilder()
         .setColor("#8B8C92")
-        .setDescription("Please select a ticket below.");
+        .setDescription("Please select the appropriate ticket type from the dropdown menu below. If you require assistance with a matter that can be addressed by the Moderation Team, please open a General Support ticket.");
 
       const menu = new StringSelectMenuBuilder()
         .setCustomId("ticket_select")
