@@ -6,7 +6,8 @@ const {
   ActionRowBuilder, StringSelectMenuBuilder,
   ButtonBuilder, ButtonStyle, PermissionsBitField,
   ChannelType, REST, Routes,
-  SlashCommandBuilder, MessageFlags
+  SlashCommandBuilder, MessageFlags,
+  ModalBuilder, TextInputBuilder, TextInputStyle
 } = require("discord.js");
 
 const fs = require("fs");
@@ -91,7 +92,7 @@ client.once("ready", async () => {
           .addChannelOption(o => o.setName("channel").setDescription("Channel").setRequired(true))
           .addStringOption(o => o.setName("prize").setDescription("Prize").setRequired(true))
           .addStringOption(o => o.setName("duration").setDescription("1mi / 1h / 1d / 1mo").setRequired(true))
-          .addIntegerOption(o => o.setName("winners").setDescription("Number of winners").setRequired(true))
+          .addIntegerOption(o => o.setName("winners").setDescription("Winners").setRequired(true))
       )
       .addSubcommand(sub =>
         sub.setName("reroll")
@@ -108,7 +109,7 @@ client.once("ready", async () => {
   console.log("✅ Bot Ready");
 });
 
-// ===== MODERATION =====
+// ===== MOD SYSTEM =====
 async function punish(interaction, type, user, reason) {
   const member = await interaction.guild.members.fetch(user.id).catch(() => null);
 
@@ -136,17 +137,14 @@ client.on("interactionCreate", async interaction => {
 
     if (interaction.commandName === "ticketpanel") {
 
-      const embed1 = new EmbedBuilder()
-        .setColor("#8B8C92")
-        .setImage(SUPPORT_IMAGE);
+      const embed1 = new EmbedBuilder().setColor("#8B8C92").setImage(SUPPORT_IMAGE);
 
       const embed2 = new EmbedBuilder()
         .setColor("#8B8C92")
-        .setDescription("Please select the appropriate ticket type from the dropdown menu below. If you require assistance with a matter that can be addressed by the Moderation Team, please open a General Support ticket.");
+        .setDescription("Please select the appropriate ticket type from the dropdown menu below.");
 
       const menu = new StringSelectMenuBuilder()
         .setCustomId("ticket_select")
-        .setPlaceholder("Select a ticket")
         .addOptions([
           { label: "General Support", value: "general", emoji: "💼" },
           { label: "Staff Report", value: "staff", emoji: "📖" },
@@ -156,13 +154,9 @@ client.on("interactionCreate", async interaction => {
         ]);
 
       const ch = await client.channels.fetch(PANEL_CHANNEL);
+      await ch.send({ embeds: [embed1, embed2], components: [new ActionRowBuilder().addComponents(menu)] });
 
-      await ch.send({
-        embeds: [embed1, embed2],
-        components: [new ActionRowBuilder().addComponents(menu)]
-      });
-
-      return interaction.reply({ content: "✅ Panel sent", flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: "Panel sent", flags: MessageFlags.Ephemeral });
     }
 
     if (interaction.commandName === "warn")
@@ -176,7 +170,7 @@ client.on("interactionCreate", async interaction => {
 
     if (interaction.commandName === "autoping") {
       autoPingChannel = interaction.options.getChannel("channel").id;
-      return interaction.reply({ content: "✅ Auto ping set", flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: "Auto ping set", flags: MessageFlags.Ephemeral });
     }
 
     // ===== GIVEAWAY =====
@@ -208,28 +202,22 @@ client.on("interactionCreate", async interaction => {
 
         const msg = await channel.send({ embeds: [embed], components: [row] });
 
-        giveaways.set(msg.id, {
-          entries: new Set(),
-          winnersCount
-        });
+        giveaways.set(msg.id, { entries: new Set(), winnersCount });
 
-        setTimeout(async () => {
+        setTimeout(() => {
           const data = giveaways.get(msg.id);
           const users = [...data.entries];
           const winners = users.sort(() => 0.5 - Math.random()).slice(0, data.winnersCount);
-
           channel.send(`🎉 Winners: ${winners.map(id => `<@${id}>`).join(", ")}`);
         }, duration);
 
-        return interaction.reply({ content: "✅ Giveaway started", flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: "Giveaway started", flags: MessageFlags.Ephemeral });
       }
 
       if (sub === "reroll") {
-        const link = interaction.options.getString("link");
-        const messageId = link.split("/").pop();
-
-        const data = giveaways.get(messageId);
-        if (!data) return interaction.reply({ content: "❌ Not found", flags: MessageFlags.Ephemeral });
+        const id = interaction.options.getString("link").split("/").pop();
+        const data = giveaways.get(id);
+        if (!data) return interaction.reply({ content: "Not found", flags: MessageFlags.Ephemeral });
 
         const users = [...data.entries];
         const winners = users.sort(() => 0.5 - Math.random()).slice(0, data.winnersCount);
@@ -241,25 +229,16 @@ client.on("interactionCreate", async interaction => {
 
   // ===== GIVEAWAY BUTTON =====
   if (interaction.isButton() && interaction.customId === "giveaway_enter") {
-
     const data = giveaways.get(interaction.message.id);
 
     if (data.entries.has(interaction.user.id)) {
-      return interaction.reply({
-        content: "You have already entered this giveaway!",
-        flags: MessageFlags.Ephemeral
-      });
+      return interaction.reply({ content: "You already entered!", flags: MessageFlags.Ephemeral });
     }
 
     data.entries.add(interaction.user.id);
 
     const embed = EmbedBuilder.from(interaction.message.embeds[0])
-      .setDescription(
-        interaction.message.embeds[0].description.replace(
-          /Entries:\s\d+/,
-          `Entries: ${data.entries.size}`
-        )
-      );
+      .setDescription(interaction.message.embeds[0].description.replace(/Entries:\s\d+/, `Entries: ${data.entries.size}`));
 
     await interaction.update({ embeds: [embed] });
   }
@@ -267,12 +246,19 @@ client.on("interactionCreate", async interaction => {
   // ===== TICKETS =====
   if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
 
+    const type = interaction.values[0];
+    let category = CAT_GENERAL;
+    let name = type;
+
+    if (type === "staff" || type === "partner") category = CAT_STAFF;
+    if (type === "leader" || type === "giveaway") category = CAT_LEADER;
+
     ticketCount++;
 
     const channel = await interaction.guild.channels.create({
-      name: `ticket-${interaction.user.username}-${ticketCount}`,
+      name: `ticket-${ticketCount}`,
       type: ChannelType.GuildText,
-      parent: CAT_GENERAL,
+      parent: category,
       permissionOverwrites: [
         { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
         { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel] }
@@ -285,29 +271,68 @@ client.on("interactionCreate", async interaction => {
     );
 
     await channel.send({
-      embeds: [new EmbedBuilder().setColor("#8B8C92").setDescription(`Hello ${interaction.user}`)],
+      embeds: [
+        new EmbedBuilder().setColor("#8B8C92")
+          .setDescription(`Hello! Thank you for opening a **${name}** ticket.\nOur staff will be with you shortly.`)
+      ],
       components: [row]
     });
 
-    interaction.reply({ content: `✅ Ticket created: ${channel}`, flags: MessageFlags.Ephemeral });
+    // ===== SPONSORED GIVEAWAY FORM =====
+    if (type === "giveaway") {
+      const modal = new ModalBuilder()
+        .setCustomId(`sponsor_${channel.id}`)
+        .setTitle("Sponsored Giveaway");
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("prize").setLabel("Prize").setStyle(1)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("duration").setLabel("Duration").setStyle(1)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("addons").setLabel("Add-ons").setStyle(1)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("announcement").setLabel("Announcement").setStyle(2)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("requirements").setLabel("Requirements").setStyle(2))
+      );
+
+      await interaction.showModal(modal);
+    }
+
+    return interaction.reply({ content: `Ticket created: ${channel}`, flags: MessageFlags.Ephemeral });
+  }
+
+  // ===== FORM SUBMIT =====
+  if (interaction.isModalSubmit() && interaction.customId.startsWith("sponsor_")) {
+
+    const channelId = interaction.customId.split("_")[1];
+    const channel = await client.channels.fetch(channelId);
+
+    const embed = new EmbedBuilder()
+      .setColor("#8B8C92")
+      .setTitle("🎉 Sponsored Giveaway Submission")
+      .setDescription(
+        `**Prize:**\n${interaction.fields.getTextInputValue("prize")}\n\n` +
+        `**Duration:**\n${interaction.fields.getTextInputValue("duration")}\n\n` +
+        `**Add-ons:**\n${interaction.fields.getTextInputValue("addons")}\n\n` +
+        `**Announcement:**\n${interaction.fields.getTextInputValue("announcement")}\n\n` +
+        `**Requirements:**\n${interaction.fields.getTextInputValue("requirements")}`
+      );
+
+    await channel.send({ embeds: [embed] });
+
+    return interaction.reply({ content: "Submitted!", flags: MessageFlags.Ephemeral });
   }
 
   // ===== CLOSE =====
   if (interaction.isButton() && interaction.customId === "close") {
 
     const messages = await interaction.channel.messages.fetch({ limit: 100 });
-
     const transcript = messages.map(m => `${m.author.tag}: ${m.content}`).reverse().join("\n");
 
     const file = `transcript-${interaction.channel.id}.txt`;
     fs.writeFileSync(file, transcript);
 
     const log = await client.channels.fetch(TRANSCRIPT_CHANNEL);
-
     await log.send({ files: [file] });
 
     setTimeout(() => interaction.channel.delete(), 3000);
-
     return interaction.reply({ content: "Closing..." });
   }
 });
