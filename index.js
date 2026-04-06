@@ -150,9 +150,9 @@ client.on("interactionCreate", async interaction => {
         .addOptions([
           { label: "General Support", value: "general", emoji: "💼" },
           { label: "Staff Report", value: "staff", emoji: "📖" },
-          { label: "Partnership", value: "partner", emoji: "🤝" },
+          { label: "Partnerships", value: "partner", emoji: "🤝" },
           { label: "Leadership Support", value: "leader", emoji: "👑" },
-          { label: "Giveaway", value: "giveaway", emoji: "🎉" }
+          { label: "Sponsored Giveaway", value: "giveaway", emoji: "🎉" }
         ]);
 
       const ch = await client.channels.fetch(PANEL_CHANNEL);
