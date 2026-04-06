@@ -141,7 +141,7 @@ client.on("interactionCreate", async interaction => {
 
       const embed2 = new EmbedBuilder()
         .setColor("#8B8C92")
-        .setDescription("Please select the appropriate ticket type from the dropdown menu below.");
+        .setDescription("Please select a ticket type below.");
 
       const menu = new StringSelectMenuBuilder()
         .setCustomId("ticket_select")
@@ -175,6 +175,7 @@ client.on("interactionCreate", async interaction => {
 
     // ===== GIVEAWAY =====
     if (interaction.commandName === "giveaway") {
+
       const sub = interaction.options.getSubcommand();
 
       if (sub === "start") {
@@ -197,166 +198,82 @@ client.on("interactionCreate", async interaction => {
           );
 
         const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId("giveaway_enter").setEmoji("🎉").setStyle(ButtonStyle.Primary)
+          new ButtonBuilder()
+            .setCustomId("giveaway_enter")
+            .setEmoji("🎉")
+            .setStyle(ButtonStyle.Secondary) // grey
         );
 
         const msg = await channel.send({ embeds: [embed], components: [row] });
 
-        giveaways.set(msg.id, { entries: new Set(), winnersCount });
+        giveaways.set(msg.id, {
+          entries: new Set(),
+          winnersCount,
+          endTime
+        });
 
-        setTimeout(() => {
+        // LIVE TIMER
+        const interval = setInterval(async () => {
+
           const data = giveaways.get(msg.id);
-          const users = [...data.entries];
-          const winners = users.sort(() => 0.5 - Math.random()).slice(0, data.winnersCount);
-          channel.send(`🎉 Winners: ${winners.map(id => `<@${id}>`).join(", ")}`);
-        }, duration);
+          if (!data) return clearInterval(interval);
+
+          if (Date.now() >= data.endTime) {
+            clearInterval(interval);
+
+            const users = [...data.entries];
+            const winners = users.sort(() => 0.5 - Math.random()).slice(0, data.winnersCount);
+
+            return channel.send(`🎉 Winners: ${winners.map(id => `<@${id}>`).join(", ")}`);
+          }
+
+          const updatedEmbed = new EmbedBuilder()
+            .setColor("#8B8C92")
+            .setTitle(`🎉 ${prize}`)
+            .setDescription(
+              `**Ends:** <t:${Math.floor(data.endTime / 1000)}:R> (<t:${Math.floor(data.endTime / 1000)}:F>)\n` +
+              `**Hosted By:** ${interaction.user}\n` +
+              `**Entries:** ${data.entries.size}\n` +
+              `**Winners:** ${data.winnersCount}`
+            );
+
+          await msg.edit({ embeds: [updatedEmbed] });
+
+        }, 5000);
 
         return interaction.reply({ content: "Giveaway started", flags: MessageFlags.Ephemeral });
-      }
-
-      if (sub === "reroll") {
-        const id = interaction.options.getString("link").split("/").pop();
-        const data = giveaways.get(id);
-        if (!data) return interaction.reply({ content: "Not found", flags: MessageFlags.Ephemeral });
-
-        const users = [...data.entries];
-        const winners = users.sort(() => 0.5 - Math.random()).slice(0, data.winnersCount);
-
-        return interaction.reply({ content: `🎉 New Winners: ${winners.map(id => `<@${id}>`).join(", ")}` });
       }
     }
   }
 
-  // ===== GIVEAWAY BUTTON =====
+  // ===== BUTTON =====
   if (interaction.isButton() && interaction.customId === "giveaway_enter") {
+
     const data = giveaways.get(interaction.message.id);
+    if (!data) return;
 
     if (data.entries.has(interaction.user.id)) {
-      return interaction.reply({ content: "You already entered!", flags: MessageFlags.Ephemeral });
+      return interaction.reply({
+        content: "You have already entered this giveaway!",
+        flags: MessageFlags.Ephemeral
+      });
     }
 
     data.entries.add(interaction.user.id);
 
-    const embed = EmbedBuilder.from(interaction.message.embeds[0])
-      .setDescription(interaction.message.embeds[0].description.replace(/Entries:\s\d+/, `Entries: ${data.entries.size}`));
+    const embed = new EmbedBuilder()
+      .setColor("#8B8C92")
+      .setTitle(interaction.message.embeds[0].title)
+      .setDescription(
+        interaction.message.embeds[0].description.replace(
+          /Entries:\s\d+/,
+          `Entries: ${data.entries.size}`
+        )
+      );
 
     await interaction.update({ embeds: [embed] });
   }
-
-  // ===== TICKETS =====
-  if (interaction.isStringSelectMenu() && interaction.customId === "ticket_select") {
-
-    const type = interaction.values[0];
-    let category = CAT_GENERAL;
-    let name = type;
-
-    if (type === "staff" || type === "partner") category = CAT_STAFF;
-    if (type === "leader" || type === "giveaway") category = CAT_LEADER;
-
-    ticketCount++;
-
-    const channel = await interaction.guild.channels.create({
-      name: `ticket-${ticketCount}`,
-      type: ChannelType.GuildText,
-      parent: category,
-      permissionOverwrites: [
-        { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel] }
-      ]
-    });
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId("claim").setLabel("Claim").setEmoji("🙋‍♂️").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId("close").setLabel("Close").setEmoji("🔒").setStyle(ButtonStyle.Danger)
-    );
-
-    await channel.send({
-      embeds: [
-        new EmbedBuilder().setColor("#8B8C92")
-          .setDescription(`Hello! Thank you for opening a **${name}** ticket.\nOur staff will be with you shortly.`)
-      ],
-      components: [row]
-    });
-
-    // ===== SPONSORED GIVEAWAY FORM =====
-    if (type === "giveaway") {
-      const modal = new ModalBuilder()
-        .setCustomId(`sponsor_${channel.id}`)
-        .setTitle("Sponsored Giveaway");
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("prize").setLabel("Prize").setStyle(1)),
-        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("duration").setLabel("Duration").setStyle(1)),
-        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("addons").setLabel("Add-ons").setStyle(1)),
-        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("announcement").setLabel("Announcement").setStyle(2)),
-        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("requirements").setLabel("Requirements").setStyle(2))
-      );
-
-      await interaction.showModal(modal);
-    }
-
-    return interaction.reply({ content: `Ticket created: ${channel}`, flags: MessageFlags.Ephemeral });
-  }
-
-  // ===== FORM SUBMIT =====
-  if (interaction.isModalSubmit() && interaction.customId.startsWith("sponsor_")) {
-
-    const channelId = interaction.customId.split("_")[1];
-    const channel = await client.channels.fetch(channelId);
-
-    const embed = new EmbedBuilder()
-      .setColor("#8B8C92")
-      .setTitle("🎉 Sponsored Giveaway Submission")
-      .setDescription(
-        `**Prize:**\n${interaction.fields.getTextInputValue("prize")}\n\n` +
-        `**Duration:**\n${interaction.fields.getTextInputValue("duration")}\n\n` +
-        `**Add-ons:**\n${interaction.fields.getTextInputValue("addons")}\n\n` +
-        `**Announcement:**\n${interaction.fields.getTextInputValue("announcement")}\n\n` +
-        `**Requirements:**\n${interaction.fields.getTextInputValue("requirements")}`
-      );
-
-    await channel.send({ embeds: [embed] });
-
-    return interaction.reply({ content: "Submitted!", flags: MessageFlags.Ephemeral });
-  }
-
-  // ===== CLOSE =====
-  if (interaction.isButton() && interaction.customId === "close") {
-
-    const messages = await interaction.channel.messages.fetch({ limit: 100 });
-    const transcript = messages.map(m => `${m.author.tag}: ${m.content}`).reverse().join("\n");
-
-    const file = `transcript-${interaction.channel.id}.txt`;
-    fs.writeFileSync(file, transcript);
-
-    const log = await client.channels.fetch(TRANSCRIPT_CHANNEL);
-    await log.send({ files: [file] });
-
-    setTimeout(() => interaction.channel.delete(), 3000);
-    return interaction.reply({ content: "Closing..." });
-  }
 });
 
-// ===== WELCOME =====
-client.on("guildMemberAdd", member => {
-
-  const ch = member.guild.channels.cache.get(WELCOME_CHANNEL);
-
-  if (ch) {
-    ch.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor("#8B8C92")
-          .setImage(SUPPORT_IMAGE)
-          .setDescription(`Welcome ${member}!`)
-      ]
-    });
-  }
-
-  if (autoPingChannel) {
-    const pingCh = member.guild.channels.cache.get(autoPingChannel);
-    if (pingCh) pingCh.send(`${member} check out this giveaway!`);
-  }
-});
-
+// ===== LOGIN =====
 client.login(TOKEN);
